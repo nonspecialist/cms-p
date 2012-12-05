@@ -3,6 +3,7 @@
 import struct
 from bitarray import bitarray
 from array import array
+import pickle
 
 """
 The data in a packet is in big-endian format. There are 5 8-bit bytes in 
@@ -41,12 +42,40 @@ class CmsPulseOx:
     based on the protocol described in cms_protocol.pdf
     """
 
-    # def __init__(self):
-        # self.data = bitarray()
+    def __init__(self):
+        self.savefile = None
+        self.loadfile = None
 
-    # We can't pack/unpack stuff because 5 bytes is inconveniently
-    # not an int of any kind
+    def set_savefile(self, path):
+        """ Open a file to save pulse ox data into. Data is saved
+        using Python's native pickle format """
+        self.savefile = open(path, 'a+b')
+
+    def stop_saving(self):
+        """ Close any open dump file """
+        self.savefile.close()
+        self.savefile = None
+
+    def set_loadfile(self, path):
+        """ Open a previously-saved datastream and process it as if
+        it were being read in from the device live """
+        self.loadfile = open(path, 'r')
+
+    def read(self):
+        while True:
+            try:
+                yield pickle.load(self.loadfile)
+            except EOFError:
+                return
+
     def sanity(self, data):
+        """ Should be called for each packet of 5 bytes of data read
+        in from the device. This method checks the sync bits of each
+        byte in the packet, according to the schema:
+
+        - byte 0 should have bit 7 HIGH
+        - bytes 1-4 should have bit 7 LOW
+        """
         # first byte has high bit set for sync
         if (not(data[0] & 0x80)):
             print "SYNC error in packet 0"
@@ -59,6 +88,13 @@ class CmsPulseOx:
         return True
 
     def parse(self, packet):
+        """ Parse out the bitfields from each data packet. There is some
+        reconstruction necessary during this process, as at least one
+        bitfield (pulse rate) is spread across two bytes, broken by a
+        sync bit.
+
+        Sets values on the instance object.
+        """
         data = bytearray(packet)
         if self.sanity(data):
             if (data[0] & CMS_BEEP):
@@ -93,11 +129,19 @@ class CmsPulseOx:
             self.pulserate |= data[3] & CMS_PULSERATE_B
             self.o2_sat = data[4] & CMS_O2_SAT
 
+            if self.savefile:
+                # we should prepend each packet with a timestamp
+                # so that we can create meaningful data streams
+                # for later parsing
+                pickle.dump(packet, self.savefile, pickle.HIGHEST_PROTOCOL)
+
             return True
         else:
             return False
 
     def dump(self):
+        """ Output a printable string based on the most recently read-in
+        packet """
         return "{0:5s} | {1:6s} | {2:5s} | {3} | {4:08b} | {5:5s} | {6:3s} | {7:02d} | {8:3d} bpm | {9:2d}% |".format(
             "beep" if self.beep else "",
             "O2 low" if self.o2_low else "",
