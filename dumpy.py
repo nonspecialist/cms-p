@@ -4,7 +4,6 @@
 #
 
 import serial
-import time
 from cmspulseox import CmsPulseOx
 
 RETRIES_MAX = 10
@@ -18,7 +17,7 @@ pulseox = CmsPulseOx()
 count = 0
 retries = RETRIES_MAX
 
-while count < 10000:
+while count < 1000:
     # Wait until we have enough to read a packet
     if (ser.inWaiting() < 5):
         continue
