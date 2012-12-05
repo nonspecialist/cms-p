@@ -7,7 +7,7 @@ from cmspulseox import CmsPulseOx
 
 pulseox = CmsPulseOx()
 
-pulseox.set_loadfile("dump.pickle")
+pulseox.set_loadfile("dump.pkl")
 
 for packet in pulseox.read():
     if pulseox.parse(packet):

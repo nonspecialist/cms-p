@@ -14,7 +14,7 @@ def openserial():
 ser = openserial()
 pulseox = CmsPulseOx()
 
-pulseox.set_savefile("dump.pickle")
+pulseox.set_savefile("dump.pkl")
 
 count = 0
 retries = RETRIES_MAX
