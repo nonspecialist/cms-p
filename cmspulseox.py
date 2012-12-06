@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import struct
+import serial
 from bitarray import bitarray
 from array import array
 import pickle
@@ -56,15 +57,36 @@ class CmsPulseOx:
         self.savefile.close()
         self.savefile = None
 
+    def set_serial(self):
+        """ Open the serial port and read from it directly """
+        self.ser = serial.Serial('/dev/ttyUSB0', 19200)
+        self.loadfile = None
+
+        # make sure we're synchronized to start with
+        while True:
+            packet = self.ser.read(5)
+            if self.parse(packet):
+                break
+            else:
+                trash = self.ser.read(1)
+
+        print "Ready for serial"
+
     def set_loadfile(self, path):
         """ Open a previously-saved datastream and process it as if
         it were being read in from the device live """
         self.loadfile = open(path, 'r')
+        self.ser.close()
+        self.ser = None
 
     def read(self):
         while True:
             try:
-                yield pickle.load(self.loadfile)
+                if self.loadfile:
+                    yield pickle.load(self.loadfile)
+                else:
+                    yield self.ser.read(5)
+                    
             except EOFError:
                 return
 
