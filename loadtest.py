@@ -9,6 +9,6 @@ pulseox = CmsPulseOx()
 
 pulseox.set_loadfile("dump.pkl")
 
-for packet in pulseox.read():
+for tstamp, packet in pulseox.read():
     if pulseox.parse(packet):
-        print pulseox.dump()
+        print "{0:10.02f}:{1}".format(tstamp, pulseox.dump())

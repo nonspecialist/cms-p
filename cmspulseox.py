@@ -5,6 +5,7 @@ import serial
 from bitarray import bitarray
 from array import array
 import pickle
+import time
 
 """
 The data in a packet is in big-endian format. There are 5 8-bit bytes in 
@@ -46,6 +47,7 @@ class CmsPulseOx:
     def __init__(self):
         self.savefile = None
         self.loadfile = None
+        self.ser = None
 
     def set_savefile(self, path):
         """ Open a file to save pulse ox data into. Data is saved
@@ -76,17 +78,20 @@ class CmsPulseOx:
         """ Open a previously-saved datastream and process it as if
         it were being read in from the device live """
         self.loadfile = open(path, 'r')
-        self.ser.close()
-        self.ser = None
+        if self.ser:
+            self.ser.close()
+            self.ser = None
 
     def read(self):
         while True:
             try:
                 if self.loadfile:
-                    yield pickle.load(self.loadfile)
+                    # timestamps are interleaved
+                    yield (pickle.load(self.loadfile), pickle.load(self.loadfile))
                 else:
-                    yield self.ser.read(5)
-                    
+                    tstamp = time.time()
+                    packet = self.ser.read(5)
+                    yield (tstamp, packet)
             except EOFError:
                 return
 
@@ -152,9 +157,9 @@ class CmsPulseOx:
             self.o2_sat = data[4] & CMS_O2_SAT
 
             if self.savefile:
-                # we should prepend each packet with a timestamp
-                # so that we can create meaningful data streams
-                # for later parsing
+                # interleave timestamps with packet data; the timestamp
+                # precedes the packet
+                pickle.dump(time.time(), self.savefile, pickle.HIGHEST_PROTOCOL)
                 pickle.dump(packet, self.savefile, pickle.HIGHEST_PROTOCOL)
 
             return True

@@ -8,33 +8,21 @@ from cmspulseox import CmsPulseOx
 
 RETRIES_MAX = 10
 
-def openserial():
-    return serial.Serial('/dev/ttyUSB0', 19200)
-
-ser = openserial()
 pulseox = CmsPulseOx()
-
 pulseox.set_savefile("dump.pkl")
+pulseox.set_serial()
 
 count = 0
 retries = RETRIES_MAX
 
-while count < 1000:
-    # Wait until we have enough to read a packet
-    if (ser.inWaiting() < 5):
-        continue
-
-    packet = ser.read(5)
+for tstamp, packet in pulseox.read():
     if pulseox.parse(packet):
-        print pulseox.dump()
+        print "{0:10.02f}:{1}".format(tstamp, pulseox.dump())
     else:
-        print "bad SYNC, re-trying"
-        trash = ser.read(1)
-        retries -= 1
-
+        print "bad packet"
     count += 1
 
-pulseox.stop_saving()
+    if (count > 10000):
+        break
 
-if not retries:
-    print "Could not achieve sync after %d tries" % RETRIES_MAX
+pulseox.stop_saving()

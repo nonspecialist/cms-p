@@ -10,6 +10,7 @@ from kivy.event import EventDispatcher
 from kivy.clock import Clock
 from kivy.graphics import *
 from cmspulseox import CmsPulseOx
+import time
 
 # concept:
 # - we communicate with the UI through lists 
@@ -38,17 +39,34 @@ class PulseOxWaveform(Widget):
         self.current_x = 0
         super(PulseOxWaveform, self).__init__(**kwargs)
 
+    def update_o2sat(self, sat_pct, o2low):
+        # o2sat is a percentage, so calculate it as a percentage
+        # of the total canvas height
+        o2height = int((sat_pct / 100.0) * self.height)
+        print "self.height = %d" % self.height
+        print "sat_pct = %d" % sat_pct
+        print "put o2sat at %d" % o2height
+        with self.canvas:
+            if o2low:
+                Color(1,0,0)
+            else:
+                Color(0,1,0)
+            Ellipse(
+                pos = (self.current_x, o2height),
+                size = (10, 10)
+            )
+            
     def update_waveform(self, height):
         base_height = int(self.height / 2)
         with self.canvas:
             # clear a space in front of the drawn point
             # n = (self.current_x+1) / self.width
-            n = 0
-            Color(n, n, n)
-            Rectangle(
-                pos = (self.current_x, 0),
-                size = (100, self.height)
-            )
+            # n = 0
+            # Color(n, n, n)
+            # Rectangle(
+                # pos = (self.current_x, 0),
+                # size = (100, self.height)
+            # )
             Color(1, 1, 1)
             Ellipse(
                 pos = (self.current_x, base_height + height),
@@ -65,8 +83,8 @@ class PulseOxApp(App):
     def __init__(self, **kwargs):
 
         self.pulseox = CmsPulseOx()
-        # self.pulseox.set_loadfile("dump.pkl")
-        self.pulseox.set_serial()
+        self.pulseox.set_loadfile("dump.pkl")
+        # self.pulseox.set_serial()
 
         super(PulseOxApp, self).__init__(**kwargs)
 
@@ -74,7 +92,7 @@ class PulseOxApp(App):
         # This works because pulseox.read() is a generator, but
         # we only want to process one packet at a time otherwise 
         # we risk harming app performance
-        for packet in self.pulseox.read():
+        for tstamp, packet in self.pulseox.read():
             if self.pulseox.parse(packet):
                 # print self.pulseox.dump()
                 # updates the various widgets around the outside
@@ -86,7 +104,10 @@ class PulseOxApp(App):
                 self.beep.text = "BEEP" if self.pulseox.beep else ""
                 self.o2sat.text = str(self.pulseox.o2_sat) + " %"
 
+                self.tstamp.text = time.strftime("        %H:%M:%S\n%a %d %b %Y",time.localtime(tstamp))
+
                 self.waveform.update_waveform(self.pulseox.waveform)
+                self.waveform.update_o2sat(self.pulseox.o2_sat, self.pulseox.o2_low)
             return
         
     def build(self):
@@ -108,12 +129,14 @@ class PulseOxApp(App):
         self.seek = Button(text = 'seek')
         self.error = Button(text = 'error')
         self.beep = Button(text = 'beep')
+        self.tstamp = Button(text = 'time')
 
         self.bottom_bar_layout.add_widget(self.strength)
         self.bottom_bar_layout.add_widget(self.search)
         self.bottom_bar_layout.add_widget(self.seek)
         self.bottom_bar_layout.add_widget(self.error)
         self.bottom_bar_layout.add_widget(self.beep)
+        self.bottom_bar_layout.add_widget(self.tstamp)
 
         self.pulse_rate = Button(text = 'rate', size_hint = (1, .2), font_size = 18)
         self.o2sat = Button(text = 'O2 sat', size_hint = (1, .2), font_size = 18)
