@@ -2,7 +2,6 @@
 
 import struct
 import serial
-from bitarray import bitarray
 from array import array
 import pickle
 import time
