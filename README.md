@@ -3,4 +3,4 @@ Medical pulse oximeter.
 
 Requirements:
 
-python-bitarray
+python-serial (this might be called pyserial, or python2-serial, depending on the distro you're using)
